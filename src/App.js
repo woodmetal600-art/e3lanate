@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { auth, googleProvider, db, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, collection, addDoc, getDocs, serverTimestamp } from "./firebase";
 
 const COLORS = {
   primary: "#4F46E5",
@@ -125,11 +126,30 @@ export default function AdsApp() {
     return matchCat && matchSearch;
   });
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!loginForm.email || !loginForm.password) { showToast("من فضلك أدخل البيانات كاملة", "error"); return; }
-    setIsLoggedIn(true);
-    setShowLogin(false);
-    showToast("أهلاً بك! تم تسجيل الدخول بنجاح ✓");
+    try {
+      if (loginForm.isRegister) {
+        await createUserWithEmailAndPassword(auth, loginForm.email, loginForm.password);
+        showToast("تم إنشاء الحساب بنجاح ✓");
+      } else {
+        await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
+        showToast("أهلاً بك! تم تسجيل الدخول بنجاح ✓");
+      }
+      setShowLogin(false);
+    } catch (e) {
+      showToast("خطأ: " + (e.code === "auth/user-not-found" ? "المستخدم غير موجود" : e.code === "auth/wrong-password" ? "كلمة المرور غلط" : e.code === "auth/email-already-in-use" ? "الإيميل مسجل بالفعل" : "حدث خطأ"), "error");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      setShowLogin(false);
+      showToast("أهلاً بك! تم تسجيل الدخول بـ Google ✓");
+    } catch (e) {
+      showToast("حدث خطأ في تسجيل الدخول", "error");
+    }
   };
 
   const handlePostAd = () => {
@@ -392,13 +412,13 @@ export default function AdsApp() {
               </div>
               <button style={{ ...S.btnPrimary, width: "100%", padding: 13, fontSize: 16, borderRadius: 10 }} onClick={handleLogin}>تسجيل الدخول</button>
               <div style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: COLORS.textMuted }}>
-                مش عندك حساب؟ <span style={{ color: COLORS.primary, cursor: "pointer", fontWeight: 700 }}>سجّل دلوقتي</span>
+                مش عندك حساب؟ <span style={{ color: COLORS.primary, cursor: "pointer", fontWeight: 700 }} onClick={() => setLoginForm({...loginForm, isRegister: true})}>سجّل دلوقتي</span>
               </div>
               <div style={{ textAlign: "center", marginTop: 20, padding: "16px 0", borderTop: `1px solid ${COLORS.border}`, fontSize: 13, color: COLORS.textLight }}>
                 أو استمر بـ
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <button style={{ ...S.btnOutline, padding: 11, borderRadius: 10, fontSize: 14 }}>🌐 Google</button>
+                <button style={{ ...S.btnOutline, padding: 11, borderRadius: 10, fontSize: 14 }} onClick={handleGoogleLogin}>🌐 Google</button>
                 <button style={{ ...S.btnOutline, padding: 11, borderRadius: 10, fontSize: 14 }}>📘 Facebook</button>
               </div>
             </div>
